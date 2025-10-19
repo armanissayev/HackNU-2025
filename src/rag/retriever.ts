@@ -1,9 +1,9 @@
 import { VectorDB, VectorIndex, SearchOptions, SearchResultItem } from './vectorDb';
 import { openRagDB, getAllChunks, getMeta } from './idbStore';
 
-const EMB_API = 'http://localhost:11434/v1/embeddings';
+const EMB_API = 'https://openai-hub.neuraldeep.tech/v1/embeddings';
 const API_KEY = 'sk-roG3OusRr0TLCHAADks6lw';
-const EMB_MODEL = 'mxbai-embed-large:latest';
+const EMB_MODEL = 'text-embedding-3-small';
 
 export interface RetrieveOptions extends SearchOptions {
   maxContextChars?: number; // hard cap for assembled context length

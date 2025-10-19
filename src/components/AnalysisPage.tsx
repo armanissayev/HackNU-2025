@@ -174,6 +174,7 @@ interface UserReportSummary {
     deltaAbs: number;
     deltaPct: number;
   }[];
+  llmSummary?: string | null; // model-generated short summary
 }
 
 function ymKey(d: Date) {
@@ -247,11 +248,15 @@ function computeEnvelopeShares(TI: number, sharesByCat: { key: string; sum: numb
   return { E_fact, D_fact, S_fact };
 }
 
+const CHAT_API = 'https://openai-hub.neuraldeep.tech/v1/chat/completions';
+const API_KEY = 'sk-roG3OusRr0TLCHAADks6lw';
+
 export function AnalysisPage({ onNavigate }: AnalysisPageProps) {
   const [period, setPeriod] = useState<'month' | 'year'>('month');
   const [txns, setTxns] = useState<Transaction[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [others, setOthers] = useState<UserReportSummary[] | null>(null);
+  const [loadingSummaries, setLoadingSummaries] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const url = new URL('../data/user-transactions.csv', import.meta.url);
@@ -264,22 +269,164 @@ export function AnalysisPage({ onNavigate }: AnalysisPageProps) {
       .catch(e => setError(e.message || 'Ошибка загрузки'));
   }, []);
 
-  // Load other users' reports and compute summaries
+  // Parse monthly aggregate user-report CSV into synthetic transactions
+  function parseUserReportCSV(text: string): Transaction[] {
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length <= 1) return [];
+    const header = lines[0].split(',').map(h => h.trim());
+    // Expected columns: Month,Year,Salary,AdditionalIncome,TotalIncome,Housing,Products,Utilities,Transport,Gym,Savings,DiscretionarySpending,TotalExpenses,UnspentBalance
+    // But we will find indices defensively by name (case-insensitive, ignoring spaces)
+    const norm = (s: string) => s.toLowerCase().replace(/\s+/g,'');
+    const hIdx = (name: string) => header.findIndex(h => norm(h) === norm(name));
+    const idxMonth = hIdx('Month');
+    const idxYear = hIdx('Year');
+    const idxSalary = hIdx('Salary');
+    const idxAddInc = hIdx('AdditionalIncome');
+    const idxHousing = hIdx('Housing');
+    const idxProducts = hIdx('Products');
+    const idxUtilities = hIdx('Utilities');
+    const idxTransport = hIdx('Transport');
+    const idxGym = hIdx('Gym');
+    const idxSavings = hIdx('Savings');
+    const idxDisc = hIdx('DiscretionarySpending');
+
+    const monthToIndex: Record<string, number> = {
+      'january': 0, 'february': 1, 'march': 2, 'april': 3, 'may': 4, 'june': 5,
+      'july': 6, 'august': 7, 'september': 8, 'october': 9, 'november': 10, 'december': 11,
+    };
+
+    const tx: Transaction[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i];
+      if (!row || !row.trim()) continue;
+      const parts = row.split(',');
+      const monthName = String(parts[idxMonth] || '').trim().toLowerCase();
+      const yearStr = String(parts[idxYear] || '').trim();
+      const year = Number(yearStr);
+      const mIdx = monthToIndex[monthName];
+      if (!(year > 1900) || mIdx === undefined) continue;
+      const date = new Date(Date.UTC(year, mIdx, 1));
+      // helper to parse numeric cell
+      const num = (v: any) => Number(String(v || '0').replace(/[^0-9+\-.,]/g,'').replace(/,/g,'.')) || 0;
+
+      // Income entries
+      if (idxSalary >= 0) {
+        const amt = num(parts[idxSalary]);
+        if (amt) tx.push({ date, category: 'income_salary', merchant: 'Salary', amount: Math.abs(amt), type: 'income' });
+      }
+      if (idxAddInc >= 0) {
+        const amt = num(parts[idxAddInc]);
+        if (amt) tx.push({ date, category: 'income_other', merchant: 'Additional income', amount: Math.abs(amt), type: 'income' });
+      }
+
+      // Expense entries (as negative amount convention is not required; we classify with isIncome)
+      if (idxHousing >= 0) {
+        const amt = num(parts[idxHousing]);
+        if (amt) tx.push({ date, category: 'housing', merchant: 'Housing', amount: -Math.abs(amt), type: 'expense' });
+      }
+      if (idxProducts >= 0) {
+        const amt = num(parts[idxProducts]);
+        if (amt) tx.push({ date, category: 'groceries', merchant: 'Groceries', amount: -Math.abs(amt), type: 'expense' });
+      }
+      if (idxUtilities >= 0) {
+        const amt = num(parts[idxUtilities]);
+        if (amt) tx.push({ date, category: 'utilities', merchant: 'Utilities', amount: -Math.abs(amt), type: 'expense' });
+      }
+      if (idxTransport >= 0) {
+        const amt = num(parts[idxTransport]);
+        if (amt) tx.push({ date, category: 'transport', merchant: 'Transport', amount: -Math.abs(amt), type: 'expense' });
+      }
+      if (idxGym >= 0) {
+        const amt = num(parts[idxGym]);
+        if (amt) tx.push({ date, category: 'health', merchant: 'Gym', amount: -Math.abs(amt), type: 'expense' });
+      }
+      if (idxSavings >= 0) {
+        const amt = num(parts[idxSavings]);
+        if (amt) tx.push({ date, category: 'savings', merchant: 'Savings', amount: -Math.abs(amt), type: 'expense' });
+      }
+      if (idxDisc >= 0) {
+        const amt = num(parts[idxDisc]);
+        if (amt) tx.push({ date, category: 'shopping', merchant: 'Discretionary', amount: -Math.abs(amt), type: 'expense' });
+      }
+    }
+    return tx;
+  }
+
+  // Map report filenames to human-friendly user names
+  const REPORT_NAME: Record<string, string> = {
+    'UPDATED_model1_single_man_Almaty_Nov2024-Oct2025_gym_only.csv': 'Aibek',
+    'income_outcome_rural_single_mother_2kids_Nov2024_Oct2025_savings70.csv': 'Aisha',
+    'income_outcome_single_father1kid_rural_Nov2024_Oct2025_v2_decreased.csv': 'Nurlan',
+    'income_outcome_student_half_time_Astana_Nov2024_Oct2025_parent70.csv': 'Dana',
+    'Model_A_Urban_couple_with_1_child_Astana_Nov_2024_to_Oct_2025.csv': 'Yerlan & Saule',
+    'astana_woman_family_income_outcome_12m (1).csv': 'Zhadyra',
+    'income_outcome_almaty_family3_Nov2024_Oct2025_diesel_var.csv': 'Almaz family'
+  };
+
+  // Helper to build prompt and request LLM summary for a report
+  async function summarizeReport(report: UserReportSummary): Promise<string | null> {
+    try {
+      // Compose a compact Russian prompt with key numbers
+      const topCats = report.sharesByCat.slice(0, 3).map(c => `${mapCategoryRu(c.key)} — ${formatKZT(c.sum)} (${(c.share*100).toFixed(0)}%)`).join('; ');
+      const lastTrend = report.trends[report.trends.length - 1];
+      const trendText = lastTrend ? `Последний месяц расходы ${formatKZT(lastTrend.totalExpense)}, изменение ${formatKZT(lastTrend.deltaAbs)} (${(lastTrend.deltaPct*100).toFixed(1)}%).` : '';
+      const sys = 'Ты — доброжелательный финансовый ассистент. Отвечай по-русски, коротко (3–5 предложений), без воды. Дай выводы и 1–2 практичных совета.';
+      const usr = `Сводка по пользователю ${report.label}:
+Доход (TI): ${formatKZT(report.totals.TI)}
+Расход (TE): ${formatKZT(report.totals.TE)}
+Чистый (NET): ${formatKZT(report.totals.NET)}
+Сбережения (S): ${formatKZT(report.totals.S)}
+Ставка сбережений (SR): ${(report.totals.SR*100).toFixed(1)}%
+Envelope фактически: Essentials ${(report.envelope.E_fact*100).toFixed(0)}%, Discretionary ${(report.envelope.D_fact*100).toFixed(0)}%, Savings ${(report.envelope.S_fact*100).toFixed(0)}%
+Топ категории: ${topCats}
+${trendText}
+Сформулируй короткий вывод об устойчивости бюджета и дай 1–2 совета по тому, как я могу интегрировать их привычки себе чтобы оптимизировать свой финаносвый менеджмент. Адрессуй эти советы именно мне.`;
+
+      const res = await fetch(CHAT_API, {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: sys },
+            { role: 'user', content: usr },
+          ],
+          temperature: 0.2,
+          max_tokens: 220,
+        }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json().catch(() => null);
+      const txt = data?.choices?.[0]?.message?.content?.trim?.();
+      return txt || null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Load other users' reports and compute summaries, then ask LLM to summarize
   useEffect(() => {
     const files = [
       'UPDATED_model1_single_man_Almaty_Nov2024-Oct2025_gym_only.csv',
       'income_outcome_rural_single_mother_2kids_Nov2024_Oct2025_savings70.csv',
       'income_outcome_single_father1kid_rural_Nov2024_Oct2025_v2_decreased.csv',
       'income_outcome_student_half_time_Astana_Nov2024_Oct2025_parent70.csv',
+      'Model_A_Urban_couple_with_1_child_Astana_Nov_2024_to_Oct_2025.csv',
+      'astana_woman_family_income_outcome_12m (1).csv',
+      'income_outcome_almaty_family3_Nov2024_Oct2025_diesel_var.csv',
     ];
     Promise.all(files.map(async (f) => {
       const url = new URL(`../data/users-reports/${f}`, import.meta.url);
       const txt = await fetch(url).then(r => r.text());
-      const parsed = parseCSV(txt);
+      const parsed = parseUserReportCSV(txt);
       const base = computeBaseMetrics(parsed);
       const trends = computeTrendsMoM(parsed);
       const envelope = computeEnvelopeShares(base.TI, base.sharesByCat, base.S);
-      const label = f.replace(/_/g,' ').replace(/\.csv$/,'');
+      const label = REPORT_NAME[f] || f.replace(/_/g,' ').replace(/\.csv$/,'');
       const id = f;
       const summary: UserReportSummary = {
         id,
@@ -288,9 +435,20 @@ export function AnalysisPage({ onNavigate }: AnalysisPageProps) {
         sharesByCat: base.sharesByCat,
         envelope,
         trends,
+        llmSummary: null,
       };
       return summary;
-    })).then(setOthers).catch(() => setOthers([]));
+    })).then(async (arr) => {
+      setOthers(arr);
+      // Sequentially request LLM summaries to avoid rate limits
+      for (const r of arr) {
+        setLoadingSummaries(prev => ({ ...prev, [r.id]: true }));
+        const s = await summarizeReport(r);
+        setOthers(curr => (curr || []).map(x => x.id === r.id ? { ...x, llmSummary: s } : x));
+        setLoadingSummaries(prev => ({ ...prev, [r.id]: false }));
+        await new Promise(res => setTimeout(res, 200));
+      }
+    }).catch(() => setOthers([]));
   }, []);
 
   const { monthlyData, categoryData, totals, recent, catIncomeOutcome } = useMemo(() => {
@@ -739,6 +897,18 @@ export function AnalysisPage({ onNavigate }: AnalysisPageProps) {
                       Тренд расходов (MoM): последний месяц {formatKZT(o.trends[o.trends.length-1].totalExpense)}; Δ = {formatKZT(o.trends[o.trends.length-1].deltaAbs)} ({pct(o.trends[o.trends.length-1].deltaPct)})
                     </div>
                   )}
+                  <div className="mt-3 pt-3 border-t border-[#E9F2EF] text-[#0B1F1A]" style={{ fontSize: '14px' }}>
+                    <div className="mb-1" style={{ fontWeight: 600 }}>ИИ‑комментарий</div>
+                    {loadingSummaries[o.id] && !o.llmSummary && (
+                      <div className="text-[#475B53]">Модель анализирует отчёт...</div>
+                    )}
+                    {!loadingSummaries[o.id] && o.llmSummary && (
+                      <div className="whitespace-pre-wrap">{o.llmSummary}</div>
+                    )}
+                    {!loadingSummaries[o.id] && o.llmSummary === null && (
+                      <div className="text-[#475B53]">Не удалось получить комментарий ИИ. Попробуйте обновить позже.</div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

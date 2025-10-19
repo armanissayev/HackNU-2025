@@ -10,9 +10,9 @@ const REPORT_JSON_PATH = path.resolve(__dirname, '../src/data/transactions-repor
 const REPORT_MD_PATH = path.resolve(__dirname, '../src/data/transactions-report.md');
 const RAG_PATH = path.resolve(__dirname, '../src/data/rag_index.json');
 
-const API_BASE = 'http://localhost:11434/v1';
+const API_BASE = 'https://openai-hub.neuraldeep.tech/v1';
 const API_KEY = 'sk-roG3OusRr0TLCHAADks6lw';
-const EMB_MODEL = 'mxbai-embed-large:latest';
+const EMB_MODEL = 'text-embedding-3-small';
 
 function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/);

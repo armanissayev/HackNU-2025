@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ZButton } from './ZButton';
 import { ZCard } from './ZCard';
-import { Send, User, Bot, Menu, Plus, MessageSquare, X, Trash2, Mic } from 'lucide-react';
+import { Send, User, Bot, Menu, Plus, MessageSquare, X, Trash2, Mic, Square, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Retriever } from '@/rag/retriever';
@@ -43,6 +43,14 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const retrieverRef = useRef<Retriever | null>(null);
     const hybridRef = useRef<HybridRetriever | null>(null);
+
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Helper: sort conversations by most recent updatedAt (descending)
   const sortByUpdatedAtDesc = (arr: Conversation[]) =>
@@ -187,8 +195,8 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
     migrateTx();
   }, []);
 
-  const EMB_API = 'http://localhost:11434/v1/embeddings';
-  const CHAT_API = 'http://localhost:11434/v1/chat/completions';
+  const EMB_API = 'https://openai-hub.neuraldeep.tech/v1/embeddings';
+  const CHAT_API = 'https://openai-hub.neuraldeep.tech/v1/chat/completions';
   const API_KEY = 'sk-roG3OusRr0TLCHAADks6lw';
 
   // --- Dual-path router helpers ---
@@ -323,8 +331,8 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
     try {
       const res = await fetch(EMB_API, {
         method: 'POST',
-        headers: { accept: 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'mxbai-embed-large:latest', input: q })
+        headers: { accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
+        body: JSON.stringify({ model: 'text-embedding-3-small', input: q })
       });
       if (!res.ok) return null;
       const data = await res.json();
@@ -422,7 +430,23 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
         const systemInstruction = {
           role: 'system' as const,
           content:
-            'Ты — тёплый и заботливый ассистент банка Zaman. Твоя речь должна быть максимально человечной и доверительной, как у внимательного консультанта. Отвечай строго на русском языке, простыми словами и короткими абзацами (до 6–8 предложений).\n\nГлавные принципы:\n- Основа ответа — предоставленный контекст (база знаний) или выводы инструмента данных. Если информации в контексте недостаточно, кратко скажи об этом и только затем добавь общий, практичный совет.\n- Поддерживай пользователя: проявляй эмпатию, признавай чувства, избегай сухих «канцеляризмов».\n- Давай рекомендации по снижению стресса без трат: дыхательные упражнения, короткие прогулки, паузы, сон, разговор с близкими, планирование задач, ведение заметок, техники благодарности и др. Не предлагай покупки как способ справиться со стрессом.\n- Финансовые советы — бережные и реалистичные: помогай избегать импульсных трат, предлагай бесплатные/низкозатратные альтернативы.\n- Если вопрос связан с самочувствием, избегай медицинских диагнозов. При признаках кризиса мягко предложи обратиться за профессиональной помощью.\n- Когда уместно, задай 1 уточняющий вопрос, чтобы лучше понять ситуацию.\n- Если цитируешь контекст, делай это кратко и указывай источник по номеру.\n\nШаблон ответа (важно):\n- Рассуждай только на основе извлечённых документов или вывода инструмента данных; не фантазируй.\n- Если нужен подсчёт/агрегация по транзакциям — сперва используй инструмент данных (уже выполнен), затем объясняй результат.\n- Приводи короткие цитаты/факты с пометкой «Источник #N» или «Данные инструмента».\n- Если в контексте/данных нет ответа — прямо скажи «В контексте нет такой информации».\n\nВсегда ставь интересы пользователя и его спокойствие на первое место.'
+            'Ты — тёплый и заботливый ассистент банка Zaman. ' +
+              'Твоя речь должна быть максимально человечной и доверительной, как у внимательного консультанта. ' +
+              'Отвечай строго на русском языке, простыми словами и короткими абзацами (до 6–8 предложений).\n\n' +
+              'Главные принципы:\n' +
+              '- Основа ответа — предоставленный контекст (база знаний) или выводы инструмента данных. Если информации в контексте недостаточно, не говори об этом, но добавь общий, практичный совет.' +
+              '\n- Поддерживай пользователя: проявляй эмпатию, признавай чувства, избегай сухих «канцеляризмов».' +
+              '\n- Давай рекомендации по снижению стресса без трат: планирование задач, ведение заметок, техники благодарности и др. Не предлагай покупки как способ справиться со стрессом.' +
+              '\n- Финансовые советы — бережные и реалистичные: помогай избегать импульсных трат, предлагай бесплатные/низкозатратные альтернативы.' +
+              '\n- Если вопрос связан с самочувствием, избегай медицинских диагнозов. При признаках кризиса мягко предложи обратиться за профессиональной помощью.' +
+              '\n- Когда уместно, задай 1 уточняющий вопрос, чтобы лучше понять ситуацию.' +
+              '\n- Если цитируешь контекст, делай это кратко и указывай источник по номеру.' +
+              '\n\nШаблон ответа (важно):\n- Рассуждай только на основе извлечённых документов или вывода инструмента данных; не фантазируй.' +
+              '\n- Если нужен подсчёт/агрегация по транзакциям — сперва используй инструмент данных (уже выполнен), затем объясняй результат.' +
+              '\n- Приводи короткие цитаты/факты с пометкой «Источник #N» или «Данные инструмента».' +
+              '\n- Всегда ставь интересы пользователя и его спокойствие на первое место. ' +
+              '\n- Если для запроса нужно учесть расходы/доходы человека, то смело обращайся к базе данных' +
+              '\n- Если ответа на вопрос нету в самом контектсе, но его можно получить исходя из логических рассуждении, то можешь выдавать эти рассуждения как ответ.'
         };
 
         async function assembleWithContext(contextText: string | null) {
@@ -544,7 +568,7 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
         }
 
         // Robust chat call with fallbacks and better diagnostics
-        const candidateModels = ['llama3.1:latest'];
+        const candidateModels = ['gpt-4o-mini'];
         let data: any = null;
         let lastErrStatus = 0;
         let lastErrText = '';
@@ -553,7 +577,8 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
             method: 'POST',
             headers: {
               accept: 'application/json',
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${API_KEY}`,
             },
             body: JSON.stringify({
               model: mdl,
@@ -620,6 +645,84 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
     };
 
     apiRequest();
+  };
+
+  // Voice: start recording
+  const startRecording = async () => {
+    setVoiceError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      recorder.onstop = async () => {
+        try {
+          const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+          await transcribeAudio(blob);
+        } catch (e: any) {
+          console.error('Transcription error', e);
+          setVoiceError('Не удалось распознать речь. Попробуйте ещё раз.');
+        } finally {
+          // stop all tracks
+          stream.getTracks().forEach(t => t.stop());
+          setIsRecording(false);
+        }
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+    } catch (e: any) {
+      console.error('Mic permission/recording error', e);
+      setVoiceError('Доступ к микрофону отклонён или не поддерживается.');
+      setIsRecording(false);
+    }
+  };
+
+  // Voice: stop recording
+  const stopRecording = () => {
+    const rec = mediaRecorderRef.current;
+    if (rec && rec.state !== 'inactive') {
+      rec.stop();
+    }
+  };
+
+  // Voice: transcribe using provided endpoint
+  const transcribeAudio = async (audioBlob: Blob) => {
+    setIsTranscribing(true);
+    try {
+      const form = new FormData();
+      const file = new File([audioBlob], 'recording.webm', { type: audioBlob.type || 'audio/webm' });
+      form.append('file', file);
+      // Many Whisper-compatible endpoints require a model; include for compatibility
+      form.append('model', 'whisper-1');
+
+      const res = await fetch('https://openai-hub.neuraldeep.tech/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer sk-roG3OusRr0TLCHAADks6lw',
+        },
+        body: form,
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+      const data = await res.json();
+      const text: string = data?.text || '';
+      if (!text) throw new Error('Пустой ответ распознавания');
+      setInputValue(prev => (prev ? prev + ' ' + text : text));
+      // focus input for convenience
+      setTimeout(() => inputRef.current?.focus(), 0);
+    } catch (e) {
+      console.error('Transcription fetch error', e);
+      setVoiceError('Ошибка при обращении к сервису распознавания.');
+    } finally {
+      setIsTranscribing(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -805,27 +908,40 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
           </div>
 
           <div className="bg-white border-t border-[#E9F2EF] p-4">
-            <div className="max-w-4xl mx-auto flex gap-3">
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Напишите сообщение..."
-                className="flex-1 h-12 px-4 bg-[#E9F2EF] border border-[#E9F2EF] rounded-xl outline-none transition-shadow duration-200 focus:shadow-[0_0_0_6px_rgba(238,255,109,0.35)]"
-              />
-              <ZButton
-                variant="secondary"
-                title="Голосовой ввод (скоро)"
-                aria-label="Голосовой ввод"
-                onClick={() => { /* TODO: добавить логику голосового ввода */ }}
-                className="px-3"
-              >
-                <Mic className="w-5 h-5" />
-              </ZButton>
-              <ZButton variant="primary" onClick={handleSend} className="px-6">
-                <Send className="w-5 h-5" />
-              </ZButton>
+            <div className="max-w-4xl mx-auto flex flex-col gap-2">
+              <div className="flex gap-3 items-center">
+                <div className="relative flex-1 flex items-center">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Напишите сообщение..."
+                    className="flex-1 h-12 pl-4 pr-12 bg-[#E9F2EF] border border-[#E9F2EF] rounded-xl outline-none transition-shadow duration-200 focus:shadow-[0_0_0_6px_rgba(238,255,109,0.35)]"
+                  />
+                  <button
+                    onClick={() => (isRecording ? stopRecording() : startRecording())}
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${isRecording ? 'bg-red-100 hover:bg-red-200' : 'bg-white hover:bg-[#E9F2EF]'} border border-[#E9F2EF]`}
+                    title={isRecording ? 'Остановить запись' : 'Голосовой ввод'}
+                    disabled={isTranscribing}
+                  >
+                    {isTranscribing ? (
+                      <Loader2 className="w-5 h-5 animate-spin text-[#2D9A86]" />
+                    ) : isRecording ? (
+                      <Square className="w-5 h-5 text-red-600" />
+                    ) : (
+                      <Mic className="w-5 h-5 text-[#0B1F1A]" />
+                    )}
+                  </button>
+                </div>
+                <ZButton variant="primary" onClick={handleSend} className="px-6" disabled={isTranscribing}>
+                  <Send className="w-5 h-5" />
+                </ZButton>
+              </div>
+              {voiceError && (
+                <div className="text-red-600 text-sm">{voiceError}</div>
+              )}
             </div>
           </div>
         </div>
