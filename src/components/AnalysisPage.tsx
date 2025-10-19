@@ -50,7 +50,7 @@ function parseCSV(text: string): Transaction[] {
   const header = lines[0].split(',').map(h => h.trim().toLowerCase());
   const idxDate = header.findIndex(h => h === 'date');
   const idxCategory = header.findIndex(h => h === 'category');
-  const idxMerchant = header.findIndex(h => h === 'merchant');
+  const idxMerchant = header.findIndex(h => h === 'merchant' || h === 'description');
   const idxType = header.findIndex(h => h === 'type'); // optional
   // find column that starts with 'amount'
   const idxAmount = header.findIndex(h => h === 'amount' || h.startsWith('amount'));
@@ -135,8 +135,12 @@ function isIncome(t: Transaction): boolean {
   if (type === 'расход' || type === 'expense') return false;
   // Then use category-based rules (supports English and Russian)
   if (isIncomeCat(t.category)) return true;
-  // Fallback: positive amount is income
-  return t.amount > 0;
+  // Heuristic by keywords in category/merchant (do not rely on sign)
+  const catStr = String(t.category || '');
+  const merchStr = String(t.merchant || '');
+  const incomeRe = /(income|зарплат|доход|поступлен|перевод|cash\s*back|cashback|кэшбэк|кешбэк|процент(ы)?|interest|bonus|бонус)/i;
+  if (incomeRe.test(catStr) || incomeRe.test(merchStr)) return true;
+  return false;
 }
 
 // Moved to top-level so it can be used by computeBaseMetrics and other helpers
@@ -358,7 +362,7 @@ export function AnalysisPage({ onNavigate }: AnalysisPageProps) {
     'income_outcome_rural_single_mother_2kids_Nov2024_Oct2025_savings70.csv': 'Aisha',
     'income_outcome_single_father1kid_rural_Nov2024_Oct2025_v2_decreased.csv': 'Nurlan',
     'income_outcome_student_half_time_Astana_Nov2024_Oct2025_parent70.csv': 'Dana',
-    'Model_A_Urban_couple_with_1_child_Astana_Nov_2024_to_Oct_2025.csv': 'Yerlan & Saule',
+    'Model_A_Urban_couple_with_1_child_Astana_Nov_2024_to_Oct_2025.csv': 'Yerlan',
     'astana_woman_family_income_outcome_12m (1).csv': 'Zhadyra',
     'income_outcome_almaty_family3_Nov2024_Oct2025_diesel_var.csv': 'Almaz family'
   };
@@ -370,7 +374,7 @@ export function AnalysisPage({ onNavigate }: AnalysisPageProps) {
       const topCats = report.sharesByCat.slice(0, 3).map(c => `${mapCategoryRu(c.key)} — ${formatKZT(c.sum)} (${(c.share*100).toFixed(0)}%)`).join('; ');
       const lastTrend = report.trends[report.trends.length - 1];
       const trendText = lastTrend ? `Последний месяц расходы ${formatKZT(lastTrend.totalExpense)}, изменение ${formatKZT(lastTrend.deltaAbs)} (${(lastTrend.deltaPct*100).toFixed(1)}%).` : '';
-      const sys = 'Ты — доброжелательный финансовый ассистент. Отвечай по-русски, коротко (3–5 предложений), без воды. Дай выводы и 1–2 практичных совета.';
+      const sys = 'Ты — доброжелательный финансовый ассистент. Тебе дали финансовый отчет другого человека. Сравни его с моим и дай мне несколько практических советов, которые могу перенять у этого человека. Отвечай по-русски, коротко (3–5 предложений), без воды. Дай выводы и 1–2 практичных совета.';
       const usr = `Сводка по пользователю ${report.label}:
 Доход (TI): ${formatKZT(report.totals.TI)}
 Расход (TE): ${formatKZT(report.totals.TE)}

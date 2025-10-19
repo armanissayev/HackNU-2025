@@ -63,7 +63,10 @@ function normalizeCat(cat) {
 function isIncomeRow(row) {
   const c = normalizeCat(row.category);
   if (c.startsWith('income_')) return true;
-  return row.amount > 0;
+  const catStr = String(row.category || '');
+  const descStr = String(row.description || '');
+  const incomeRe = /(income|зарплат|доход|поступлен|перевод|cash\s*back|cashback|кэшбэк|кешбэк|процент(ы)?|interest|bonus|бонус)/i;
+  return incomeRe.test(catStr) || incomeRe.test(descStr);
 }
 
 function summarize(rows) {
@@ -175,7 +178,7 @@ function mdReport(summary) {
     }
   }
   lines.push('');
-  lines.push('> Справка: положительные суммы — доходы, отрицательные — расходы.');
+  lines.push('> Справка: доходы и расходы определяются по категориям и описанию транзакций; знак суммы не используется в расчётах.');
   return lines.join('\n');
 }
 

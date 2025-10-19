@@ -231,18 +231,6 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
     return {};
   }
 
-  function classifyQuery(q: string): 'structured' | 'semantic' {
-    const s = q.toLowerCase();
-    const structuredHints = [
-      'how much','сколько','итого','сумма','total','average','avg','средн','потрат','расход','доход','net','всего',
-      'income','earning','earnings','revenue','expense','expenses','spend','spent','outcome','outgo','outgoing','balance'
-    ];
-    const hasNum = /\d/.test(s);
-    const hasIncomeOutcomePair = /(income\s+and\s+(outcome|expense|expenses|spend|spent))|(доход\s+и\s+расход)/.test(s);
-    if (hasIncomeOutcomePair) return 'structured';
-    if (structuredHints.some(h => s.includes(h)) || (hasNum && !!monthStringToRange(s).month)) return 'structured';
-    return 'semantic';
-  }
 
   function extractConstraints(q: string) {
     const s = q.toLowerCase();
@@ -276,7 +264,7 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
         const rec = {
           date: row['Date'] || row['date'] || row['DATE'],
           category: row['Category'] || row['category'],
-          description: row['Description'] || row['description'],
+          description: row['Description'] || row['description'] || row['Merchant'] || row['merchant'],
           amount: parsedAmount
         };
         // skip bad rows with invalid date or amount
@@ -302,6 +290,10 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
     const cat = c.category; const merch = c.merchant;
     let income = 0, expense = 0;
     const details: any[] = [];
+
+    // Heuristic: determine income vs expense by category/description keywords, not only by sign
+    const incomeRe = /(income|зарплат|доход|поступлен|перевод|cash\s*back|cashback|кэшбэк|кешбэк|процент(ы)?|interest|bonus|бонус)/i;
+
     for (const r of rows) {
       const d = new Date(r.date);
       if (!isFinite(r.amount)) continue; // guard invalid amounts
@@ -309,7 +301,13 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
       if (!withinMonth(d, y, m)) continue;
       if (cat && !(String(r.category||'').toLowerCase().includes(cat))) continue;
       if (merch && !(String(r.description||'').toLowerCase().includes(merch))) continue;
-      if (r.amount >= 0) income += r.amount; else expense += -r.amount;
+
+      const catStr = String(r.category || '');
+      const descStr = String(r.description || '');
+      const isInc = incomeRe.test(catStr) || incomeRe.test(descStr);
+      const amt = Math.abs(Number(r.amount));
+      if (isInc) income += amt; else expense += amt;
+
       details.push(r);
     }
     const net = income - expense;
@@ -328,7 +326,8 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
   }
 
   async function embedQuery(q: string): Promise<number[] | null> {
-    try {
+    console.log("HI")
+      try {
       const res = await fetch(EMB_API, {
         method: 'POST',
         headers: { accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
@@ -336,7 +335,8 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
       });
       if (!res.ok) return null;
       const data = await res.json();
-      if (data?.data?.[0]?.embedding) console.log(data?.data?.[0]?.embedding)
+      if (data?.data?.[0]?.embedding) console.log(data?.data?.[0]?.embedding);
+      else console.log('No embedding found');
       return data?.data?.[0]?.embedding || null;
     } catch {
       return null;
@@ -419,7 +419,8 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
 
     // Call AI endpoint
     const apiRequest = async () => {
-      try {
+      console.log("start")
+        try {
         const history = [...messages, userMessage].map(m => ({
           role: m.sender === 'user' ? 'user' : 'assistant',
           content: m.text,
@@ -445,8 +446,8 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
               '\n- Если нужен подсчёт/агрегация по транзакциям — сперва используй инструмент данных (уже выполнен), затем объясняй результат.' +
               '\n- Приводи короткие цитаты/факты с пометкой «Источник #N» или «Данные инструмента».' +
               '\n- Всегда ставь интересы пользователя и его спокойствие на первое место. ' +
-              '\n- Если для запроса нужно учесть расходы/доходы человека, то смело обращайся к базе данных' +
-              '\n- Если ответа на вопрос нету в самом контектсе, но его можно получить исходя из логических рассуждении, то можешь выдавать эти рассуждения как ответ.'
+              '\n- Если ответа на вопрос нету в самом контектсе, но его можно получить исходя из логических рассуждении, то можешь выдавать эти рассуждения как ответ. ' +
+              '\n- Если пользователю будет полезно, предлагай услуги банка для достижения его целей'
         };
 
         async function assembleWithContext(contextText: string | null) {
@@ -468,24 +469,7 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
 
         let contextAssembled = false;
 
-        // Router: decide structured vs semantic
-        const route = classifyQuery(userMessage.text);
-        if (route === 'structured') {
-          const { snippet } = await runStructuredQuery(userMessage.text);
-          const wrappedHistory = [...history];
-          for (let i = wrappedHistory.length - 1; i >= 0; i--) {
-            if (wrappedHistory[i].role === 'user') {
-              const originalQ = wrappedHistory[i].content as string;
-              wrappedHistory[i] = {
-                role: 'user',
-                content: `Данные инструмента (агрегации по транзакциям):\n${snippet}\n\nВопрос пользователя: ${originalQ}\n\nИнструкция: объясни результат простыми словами и, если уместно, дай практичный совет по управлению расходами.`
-              } as any;
-              break;
-            }
-          }
-          messagesForApi = [systemInstruction, ...wrappedHistory] as any;
-          contextAssembled = true; // skip semantic retrieval
-        } else {
+        // Retrieval: semantic-first (query classifier removed)
           // First try hybrid retrieval over transactions and summaries with metadata filters
           try {
             if (!hybridRef.current) {
@@ -537,7 +521,9 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
           }
 
           // Fallback: use raw ragIndex + local embedQuery + cosine with metadata filters
+            console.log("2")
           if (!contextAssembled && ragIndex && ragIndex.chunks?.length) {
+              console.log("1")
             try {
               const qEmb = await embedQuery(userMessage.text);
               if (qEmb) {
@@ -565,7 +551,6 @@ export function ChatPage({ onNavigate }: ChatPageProps) {
               // last resort: no context
             }
           }
-        }
 
         // Robust chat call with fallbacks and better diagnostics
         const candidateModels = ['gpt-4o-mini'];

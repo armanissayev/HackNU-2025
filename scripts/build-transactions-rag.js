@@ -1,9 +1,9 @@
-// Build RAG-friendly indexes from user-transactions.csv
-// - Produces two index files with embeddings:
-//   src/data/tx_index.json (one doc per transaction)
-//   src/data/sum_index.json (precomputed summaries: monthly/category/merchant/recurring/anomalies)
-// - Also writes raw JSONL of docs for debugging: src/data/tx_docs.jsonl and src/data/sum_docs.jsonl
-// Usage: node scripts/build-transactions-rag.js
+// Построение RAG-индексов на основе user-transactions.csv
+// - Создаёт два файла индексов с эмбеддингами:
+//   src/data/tx_index.json (один документ на транзакцию)
+//   src/data/sum_index.json (предрасчитанные сводки: по месяцам/категориям/мерчантам/повторяющимся/аномалиям)
+// - Также записывает сырые JSONL документы для отладки: src/data/tx_docs.jsonl и src/data/sum_docs.jsonl
+// Запуск: node scripts/build-transactions-rag.js
 
 const fs = require('fs');
 const path = require('path');
@@ -51,7 +51,7 @@ function parseCSV(text) {
 }
 
 function toISODate(d) {
-  // normalize to UTC date ISO (no time if not present)
+  // нормализуем к ISO дате в UTC (без времени, если оно отсутствует)
   const iso = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds())).toISOString();
   return iso;
 }
@@ -108,7 +108,11 @@ function amountBin(n) {
 
 function isIncome(row) {
   const nc = normCategory(row.category);
-  return nc.startsWith('income_') || row.amount > 0;
+  if (nc.startsWith('income_')) return true;
+  const catStr = String(row.category || '');
+  const descStr = String(row.description || '');
+  const incomeRe = /(income|зарплат|доход|поступлен|перевод|cash\s*back|cashback|кэшбэк|кешбэк|процент(ы)?|interest|bonus|бонус)/i;
+  return incomeRe.test(catStr) || incomeRe.test(descStr);
 }
 
 function ruYesNo(b) {
@@ -172,9 +176,9 @@ function txDoc(row, idx) {
 
 function summarize(rows) {
   const byMonth = new Map();
-  const byCatMonth = new Map(); // key: `${y}-${m}_${cat1}`
-  const byMerchMonth = new Map(); // key: `${y}-${m}_${merchant}`
-  const recurring = new Map(); // merchant -> {count, total, months}
+  const byCatMonth = new Map(); // ключ: `${y}-${m}_${cat1}`
+  const byMerchMonth = new Map(); // ключ: `${y}-${m}_${merchant}`
+  const recurring = new Map(); // merchant -> {count, total, months} (повторяющиеся)
   const expensesOnly = [];
 
   for (const r of rows) {
@@ -207,7 +211,7 @@ function summarize(rows) {
     }
   }
 
-  // Simple anomalies vs 3-month median by category
+  // Простые аномалии относительно медианы за 3 месяца по категориям
   const byCat = new Map();
   for (const r of expensesOnly) {
     const key = normCategory(r.category);
@@ -243,7 +247,7 @@ async function embedBatch(inputs) {
   });
   if (!res.ok) {
     const t = await res.text().catch(() => '');
-    throw new Error(`Embeddings API error ${res.status}: ${t}`);
+    throw new Error(`Ошибка Embeddings API ${res.status}: ${t}`);
   }
   const data = await res.json();
   return data.data.map(d => d.embedding);
@@ -251,20 +255,20 @@ async function embedBatch(inputs) {
 
 async function main() {
   if (!fs.existsSync(CSV_PATH)) {
-    console.error('CSV not found at', CSV_PATH);
+    console.error('CSV-файл не найден по пути', CSV_PATH);
     process.exit(1);
   }
   const csv = fs.readFileSync(CSV_PATH, 'utf8');
   const rows = parseCSV(csv);
   if (!rows.length) {
-    console.error('No transactions parsed from CSV.');
+    console.error('Не удалось распарсить ни одной транзакции из CSV.');
     process.exit(1);
   }
 
-  // 1) Build transaction documents
+  // 1) Формируем документы-транзакции
   const txDocs = rows.map((r, i) => txDoc(r, i+1));
 
-  // 2) Build summary documents
+  // 2) Формируем сводные документы
   const agg = summarize(rows);
   const sumDocs = [];
 
@@ -277,7 +281,7 @@ async function main() {
     return 'транзакций';
   }
 
-  // Monthly totals
+  // Помесячные итоги
   for (const [mk, v] of agg.byMonth.entries()) {
     const [y, mm] = mk.split('-').map(Number);
     sumDocs.push({
@@ -288,7 +292,7 @@ async function main() {
     });
   }
 
-  // Per-category monthly
+  // По категориям за месяц
   for (const [k, v] of agg.byCatMonth.entries()) {
     const [mk, cat1] = k.split('_');
     const [y, mm] = mk.split('-').map(Number);
@@ -300,7 +304,7 @@ async function main() {
     });
   }
 
-  // Per-merchant monthly
+  // По мерчантам за месяц
   for (const [k, v] of agg.byMerchMonth.entries()) {
     const [mk, merchant] = k.split('_');
     const [y, mm] = mk.split('-').map(Number);
@@ -312,7 +316,7 @@ async function main() {
     });
   }
 
-  // Recurring subscriptions list
+  // Список повторяющихся подписок
   if (agg.recurring.length) {
     const line = agg.recurring
       .sort((a,b)=>b.total-a.total)
@@ -325,14 +329,14 @@ async function main() {
     });
   }
 
-  // Anomalies already include proper shape; add them
+  // Аномалии уже имеют нужную форму; добавляем их
   for (const a of agg.anomalies) sumDocs.push(a);
 
-  // Write raw JSONL for debugging
+  // Записываем сырые JSONL для отладки
   fs.writeFileSync(OUT_TX_JSONL, txDocs.map(d => JSON.stringify(d)).join('\n'), 'utf8');
   fs.writeFileSync(OUT_SUM_JSONL, sumDocs.map(d => JSON.stringify(d)).join('\n'), 'utf8');
 
-  // Embed text fields
+  // Строим эмбеддинги для текстовых полей
   const txEmb = await embedBatch(txDocs.map(d => d.text));
   const sumEmb = await embedBatch(sumDocs.map(d => d.text));
   const dims = txEmb[0]?.length || 1536;
@@ -352,10 +356,10 @@ async function main() {
 
   fs.writeFileSync(OUT_TX_INDEX, JSON.stringify(txIndex), 'utf8');
   fs.writeFileSync(OUT_SUM_INDEX, JSON.stringify(sumIndex), 'utf8');
-  console.log('Built indexes:', OUT_TX_INDEX, 'and', OUT_SUM_INDEX);
+  console.log('Индексы построены:', OUT_TX_INDEX, 'и', OUT_SUM_INDEX);
 }
 
 main().catch(err => {
-  console.error('build-transactions-rag failed:', err);
+  console.error('Ошибка build-transactions-rag:', err);
   process.exit(1);
 });
