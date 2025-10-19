@@ -1,0 +1,103 @@
+date,category,description,amount (₸)
+2024-11-01,Salary,Monthly salary from company,500000
+2024-11-01,Taxi income,Additional income from part-time taxi driving,39831
+2024-11-01,Accommodation,Monthly apartment rent,-200000
+2024-11-01,Products,Groceries and home products,-150000
+2024-11-01,Savings,Money transferred to savings account,-20263
+2024-11-01,Cafe,Dining and coffee expenses,-68470
+2024-11-01,Toys,Toys and gifts for children,-20117
+2024-11-01,Diesel,Fuel expenses,-38811
+2024-11-01,Entertainment,"Movies, parks, and family entertainment",-42170
+2024-12-01,Salary,Monthly salary from company,500000
+2024-12-01,Accommodation,Monthly apartment rent,-200000
+2024-12-01,Products,Groceries and home products,-150000
+2024-12-01,Savings,Money transferred to savings account,-42235
+2024-12-01,Cafe,Dining and coffee expenses,-48723
+2024-12-01,Toys,Toys and gifts for children,-15381
+2024-12-01,Diesel,Fuel expenses,-29779
+2024-12-01,Entertainment,"Movies, parks, and family entertainment",-13882
+2025-01-01,Salary,Monthly salary from company,500000
+2025-01-01,Taxi income,Additional income from part-time taxi driving,15497
+2025-01-01,Accommodation,Monthly apartment rent,-200000
+2025-01-01,Products,Groceries and home products,-150000
+2025-01-01,Savings,Money transferred to savings account,-43234
+2025-01-01,Cafe,Dining and coffee expenses,-59919
+2025-01-01,Toys,Toys and gifts for children,-19569
+2025-01-01,Diesel,Fuel expenses,-35757
+2025-01-01,Entertainment,"Movies, parks, and family entertainment",-7018
+2025-02-01,Salary,Monthly salary from company,500000
+2025-02-01,Taxi income,Additional income from part-time taxi driving,41748
+2025-02-01,Accommodation,Monthly apartment rent,-200000
+2025-02-01,Products,Groceries and home products,-150000
+2025-02-01,Savings,Money transferred to savings account,-28010
+2025-02-01,Cafe,Dining and coffee expenses,-59110
+2025-02-01,Toys,Toys and gifts for children,-31888
+2025-02-01,Diesel,Fuel expenses,-43221
+2025-02-01,Entertainment,"Movies, parks, and family entertainment",-29519
+2025-03-01,Salary,Monthly salary from company,500000
+2025-03-01,Taxi income,Additional income from part-time taxi driving,14890
+2025-03-01,Accommodation,Monthly apartment rent,-200000
+2025-03-01,Products,Groceries and home products,-150000
+2025-03-01,Savings,Money transferred to savings account,-32422
+2025-03-01,Cafe,Dining and coffee expenses,-63056
+2025-03-01,Toys,Toys and gifts for children,-20527
+2025-03-01,Diesel,Fuel expenses,-32280
+2025-03-01,Entertainment,"Movies, parks, and family entertainment",-16605
+2025-04-01,Salary,Monthly salary from company,500000
+2025-04-01,Accommodation,Monthly apartment rent,-200000
+2025-04-01,Products,Groceries and home products,-150000
+2025-04-01,Savings,Money transferred to savings account,-45001
+2025-04-01,Cafe,Dining and coffee expenses,-46463
+2025-04-01,Toys,Toys and gifts for children,-13069
+2025-04-01,Diesel,Fuel expenses,-30519
+2025-04-01,Entertainment,"Movies, parks, and family entertainment",-14948
+2025-05-01,Salary,Monthly salary from company,500000
+2025-05-01,Accommodation,Monthly apartment rent,-200000
+2025-05-01,Products,Groceries and home products,-150000
+2025-05-01,Savings,Money transferred to savings account,-30093
+2025-05-01,Cafe,Dining and coffee expenses,-38038
+2025-05-01,Toys,Toys and gifts for children,-14045
+2025-05-01,Diesel,Fuel expenses,-32171
+2025-05-01,Entertainment,"Movies, parks, and family entertainment",-35653
+2025-06-01,Salary,Monthly salary from company,500000
+2025-06-01,Taxi income,Additional income from part-time taxi driving,35404
+2025-06-01,Accommodation,Monthly apartment rent,-200000
+2025-06-01,Products,Groceries and home products,-150000
+2025-06-01,Savings,Money transferred to savings account,-28376
+2025-06-01,Cafe,Dining and coffee expenses,-69324
+2025-06-01,Toys,Toys and gifts for children,-22485
+2025-06-01,Diesel,Fuel expenses,-41015
+2025-06-01,Entertainment,"Movies, parks, and family entertainment",-24204
+2025-07-01,Salary,Monthly salary from company,500000
+2025-07-01,Taxi income,Additional income from part-time taxi driving,39718
+2025-07-01,Accommodation,Monthly apartment rent,-200000
+2025-07-01,Products,Groceries and home products,-150000
+2025-07-01,Savings,Money transferred to savings account,-34829
+2025-07-01,Cafe,Dining and coffee expenses,-53970
+2025-07-01,Toys,Toys and gifts for children,-17066
+2025-07-01,Diesel,Fuel expenses,-37307
+2025-07-01,Entertainment,"Movies, parks, and family entertainment",-46546
+2025-08-01,Salary,Monthly salary from company,500000
+2025-08-01,Accommodation,Monthly apartment rent,-200000
+2025-08-01,Products,Groceries and home products,-150000
+2025-08-01,Savings,Money transferred to savings account,-37653
+2025-08-01,Cafe,Dining and coffee expenses,-37377
+2025-08-01,Toys,Toys and gifts for children,-13256
+2025-08-01,Diesel,Fuel expenses,-27369
+2025-08-01,Entertainment,"Movies, parks, and family entertainment",-34345
+2025-09-01,Salary,Monthly salary from company,500000
+2025-09-01,Accommodation,Monthly apartment rent,-200000
+2025-09-01,Products,Groceries and home products,-150000
+2025-09-01,Savings,Money transferred to savings account,-42386
+2025-09-01,Cafe,Dining and coffee expenses,-34076
+2025-09-01,Toys,Toys and gifts for children,-17543
+2025-09-01,Diesel,Fuel expenses,-24633
+2025-09-01,Entertainment,"Movies, parks, and family entertainment",-31362
+2025-10-01,Salary,Monthly salary from company,500000
+2025-10-01,Accommodation,Monthly apartment rent,-200000
+2025-10-01,Products,Groceries and home products,-150000
+2025-10-01,Savings,Money transferred to savings account,-37626
+2025-10-01,Cafe,Dining and coffee expenses,-45186
+2025-10-01,Toys,Toys and gifts for children,-11310
+2025-10-01,Diesel,Fuel expenses,-29438
+2025-10-01,Entertainment,"Movies, parks, and family entertainment",-26440

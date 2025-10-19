@@ -1,0 +1,243 @@
+{
+  "generatedAt": "2025-10-19T00:20:09.485Z",
+  "totals": {
+    "income": 6187088,
+    "expense": 5864396,
+    "net": 322692
+  },
+  "months": [
+    {
+      "month": "2024-11",
+      "income": 539831,
+      "expense": 497661,
+      "net": 42170,
+      "count": 9
+    },
+    {
+      "month": "2024-12",
+      "income": 500000,
+      "expense": 486118,
+      "net": 13882,
+      "count": 8
+    },
+    {
+      "month": "2025-01",
+      "income": 515497,
+      "expense": 508479,
+      "net": 7018,
+      "count": 9
+    },
+    {
+      "month": "2025-02",
+      "income": 541748,
+      "expense": 512229,
+      "net": 29519,
+      "count": 9
+    },
+    {
+      "month": "2025-03",
+      "income": 514890,
+      "expense": 498285,
+      "net": 16605,
+      "count": 9
+    },
+    {
+      "month": "2025-04",
+      "income": 500000,
+      "expense": 485052,
+      "net": 14948,
+      "count": 8
+    },
+    {
+      "month": "2025-05",
+      "income": 500000,
+      "expense": 464347,
+      "net": 35653,
+      "count": 8
+    },
+    {
+      "month": "2025-06",
+      "income": 535404,
+      "expense": 511200,
+      "net": 24204,
+      "count": 9
+    },
+    {
+      "month": "2025-07",
+      "income": 539718,
+      "expense": 493172,
+      "net": 46546,
+      "count": 9
+    },
+    {
+      "month": "2025-08",
+      "income": 500000,
+      "expense": 465655,
+      "net": 34345,
+      "count": 8
+    },
+    {
+      "month": "2025-09",
+      "income": 500000,
+      "expense": 468638,
+      "net": 31362,
+      "count": 8
+    },
+    {
+      "month": "2025-10",
+      "income": 500000,
+      "expense": 473560,
+      "net": 26440,
+      "count": 8
+    }
+  ],
+  "categories": [
+    {
+      "key": "housing",
+      "name": "Accommodation",
+      "income": 0,
+      "expense": 2400000,
+      "total": 2400000,
+      "count": 12
+    },
+    {
+      "key": "groceries",
+      "name": "Products",
+      "income": 0,
+      "expense": 1800000,
+      "total": 1800000,
+      "count": 12
+    },
+    {
+      "key": "food_out",
+      "name": "Cafe",
+      "income": 0,
+      "expense": 623712,
+      "total": 623712,
+      "count": 12
+    },
+    {
+      "key": "savings",
+      "name": "Savings",
+      "income": 0,
+      "expense": 422128,
+      "total": 422128,
+      "count": 12
+    },
+    {
+      "key": "transport",
+      "name": "Diesel",
+      "income": 0,
+      "expense": 402300,
+      "total": 402300,
+      "count": 12
+    },
+    {
+      "key": "toys",
+      "name": "Toys",
+      "income": 0,
+      "expense": 216256,
+      "total": 216256,
+      "count": 12
+    },
+    {
+      "key": "income_salary",
+      "name": "Salary",
+      "income": 6000000,
+      "expense": 0,
+      "total": 6000000,
+      "count": 12
+    },
+    {
+      "key": "income_taxi",
+      "name": "Taxi income",
+      "income": 187088,
+      "expense": 0,
+      "total": 187088,
+      "count": 6
+    },
+    {
+      "key": "entertainment",
+      "name": "Entertainment",
+      "income": 0,
+      "expense": 0,
+      "total": 0,
+      "count": 12
+    }
+  ],
+  "merchants": [
+    {
+      "name": "Monthly apartment rent",
+      "amount": 2400000,
+      "income": 0,
+      "expense": 2400000,
+      "count": 12
+    },
+    {
+      "name": "Groceries and home products",
+      "amount": 1800000,
+      "income": 0,
+      "expense": 1800000,
+      "count": 12
+    },
+    {
+      "name": "Dining and coffee expenses",
+      "amount": 623712,
+      "income": 0,
+      "expense": 623712,
+      "count": 12
+    },
+    {
+      "name": "Money transferred to savings account",
+      "amount": 422128,
+      "income": 0,
+      "expense": 422128,
+      "count": 12
+    },
+    {
+      "name": "Fuel expenses",
+      "amount": 402300,
+      "income": 0,
+      "expense": 402300,
+      "count": 12
+    },
+    {
+      "name": "Toys and gifts for children",
+      "amount": 216256,
+      "income": 0,
+      "expense": 216256,
+      "count": 12
+    },
+    {
+      "name": "Monthly salary from company",
+      "amount": 6000000,
+      "income": 6000000,
+      "expense": 0,
+      "count": 12
+    },
+    {
+      "name": "Additional income from part-time taxi driving",
+      "amount": 187088,
+      "income": 187088,
+      "expense": 0,
+      "count": 6
+    },
+    {
+      "name": "\"Movies",
+      "amount": 0,
+      "income": 0,
+      "expense": 0,
+      "count": 12
+    }
+  ],
+  "anomalies": [
+    {
+      "date": "2025-02-01T00:00:00.000Z",
+      "category": "Toys",
+      "description": "Toys and gifts for children",
+      "amount": -31888,
+      "z": 1.8427576641913952
+    }
+  ],
+  "count": 102
+}
